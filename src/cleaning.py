@@ -137,3 +137,22 @@ def run_cleaning_pipeline():
 
 if __name__ == "__main__":
     run_cleaning_pipeline()
+
+
+engine = get_db_engine()
+with engine.connect() as conn:
+    # 1. Vérifier le nombre total de lignes nettoyées
+    total = pd.read_sql("SELECT COUNT(*) FROM wash_cleaned_data;", conn).iloc[0, 0]
+    
+    # 2. Vérifier s'il reste des valeurs NULL dans les colonnes clés
+    nulls = pd.read_sql("""
+        SELECT 
+            COUNT(*) - COUNT(population) AS null_pop,
+            COUNT(*) - COUNT(taux_assainissement) AS null_taux,
+            COUNT(*) - COUNT(beneficiaires_latrine_basique_total) AS null_benef
+        FROM wash_cleaned_data;
+    """, conn)
+
+print(f"✅ Nombre total de communes nettoyées : {total}")
+print("📊 Valeurs NULL restantes après nettoyage :")
+print(nulls)
