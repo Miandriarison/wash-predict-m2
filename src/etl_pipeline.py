@@ -4,7 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 # Import de la connexion centralisée
-from src.database import get_db_engine
+from database import get_db_engine
 
 
 # ==========================================
@@ -210,7 +210,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 # Import de la connexion DB centralisée
-from src.database import get_db_engine
+from database import get_db_engine
 
 
 # ==========================================

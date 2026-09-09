@@ -1,5 +1,5 @@
 import pandas as pd
-from src.database import get_db_engine
+from database import get_db_engine
 
 
 def run_descriptive_analysis():
