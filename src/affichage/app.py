@@ -1,72 +1,102 @@
-import streamlit as st
+import os
+from pathlib import Path
+import joblib
+import numpy as np
+import pandas as pd
 import requests
-import plotly.graph_objects as go
+import streamlit as st
 
+# Resolution du chemin vers la racine du projet (wash-predict-m2)
+# .parent (affichage) -> .parent (src) -> .parent (racine)
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# Configuration de la page Streamlit
 st.set_page_config(
-    page_title="WASH Access Rate Predictor - Madagascar",
+    page_title="WASH Predict - M2 BIHAR",
     page_icon="💧",
-    layout="wide"
+    layout="wide",
 )
 
-API_URL = "http://127.0.0.1:8000/predict"
+st.title("💧 Plateforme de Prédiction du Taux d'Assainissement (WASH)")
+st.markdown(
+    "Application de simulation et de prédiction du taux d'accès à l'assainissement basée sur un réseau de neurones (MLP)."
+)
 
-st.title("💧 Dashboard de Prédiction du Taux d'Accès à l'Assainissement (M2 BIHAR)")
-st.markdown("---")
+st.sidebar.header("⚙️ Paramètres d'entrée")
 
-col_form, col_visu = st.columns([1, 2])
+# Formulaire d'entrée dans la barre latérale
+population = st.sidebar.number_input(
+    "Population totale", min_value=1, value=3000, step=100
+)
+beneficiaires_latrine = st.sidebar.number_input(
+    "Bénéficiaires latrines basiques", min_value=0, value=100, step=10
+)
+latrine_partagee = st.sidebar.number_input(
+    "Ménages avec latrines améliorées (Partagées)",
+    min_value=0,
+    value=30,
+    step=5,
+)
+latrine_non_partagee = st.sidebar.number_input(
+    "Ménages avec latrines améliorées (Non partagées)",
+    min_value=0,
+    value=20,
+    step=5,
+)
+milieu = st.sidebar.selectbox(
+    "Milieu de résidence", ["Rural", "Urbain"], index=0
+)
 
-with col_form:
-    st.header("📋 Données de la Commune")
-    pop = st.number_input("Population totale", min_value=100, value=12500, step=500)
-    benef_lat = st.number_input("Bénéficiaires latrines basiques", min_value=0, value=3200, step=100)
-    lat_part = st.number_input("Ménages latrines améliorées partagées", min_value=0, value=450, step=50)
-    lat_non_part = st.number_input("Ménages latrines améliorées non partagées", min_value=0, value=1200, step=50)
-    milieu = st.radio("Milieu de résidence", ["Rural", "Urbain"])
+milieu_urbain_val = 1 if milieu == "Urbain" else 0
 
-    btn_predict = st.button("🚀 Prédire le Taux d'Accès", use_container_width=True)
+# Bouton de prédiction
+if st.button("🚀 Calculer la prédiction", type="primary"):
+    payload = {
+        "population": population,
+        "beneficiaires_latrine_basique_total": beneficiaires_latrine,
+        "menages_latrine_amelioree_partagee": latrine_partagee,
+        "menages_latrine_amelioree_non_partagee": latrine_non_partagee,
+        "milieu_URBAIN": milieu_urbain_val,
+    }
 
-with col_visu:
-    st.header("📊 Résultat de la Prédiction")
+    # 1. Tentative de requête via l'API FastAPI
+    api_url = "http://127.0.0.1:8000/predict"
+    prediction_reussie = False
+    taux_resultat = 0.0
 
-    if btn_predict:
-        payload = {
-            "population": float(pop),
-            "beneficiaires_latrine_basique_total": float(benef_lat),
-            "menages_latrine_amelioree_partagee": float(lat_part),
-            "menages_latrine_amelioree_non_partagee": float(lat_non_part),
-            "milieu_URBAIN": 1 if milieu == "Urbain" else 0
-        }
-
+    try:
+        response = requests.post(api_url, json=payload, timeout=3)
+        if response.status_code == 200:
+            taux_resultat = response.json().get(
+                "taux_assainissement_predit", 0.0
+            )
+            prediction_reussie = True
+            st.success("Prédiction obtenue via l'API FastAPI (http://127.0.0.1:8000)")
+    except Exception:
+        # 2. Mode secours : Inférence locale directe via les fichiers .joblib
         try:
-            response = requests.post(API_URL, json=payload)
-            if response.status_code == 200:
-                res = response.json()
-                taux = res["valeur_numerique"]
-
-                # KPI
-                st.metric(label="Taux d'Accès Prédit", value=f"{taux}%")
-
-                # Jauge Plotly
-                fig_gauge = go.Figure(go.Indicator(
-                    mode="gauge+number",
-                    value=taux,
-                    domain={'x': [0, 1], 'y': [0, 1]},
-                    title={'text': "Taux d'Accès Prévisionnel (%)"},
-                    gauge={
-                        'axis': {'range': [0, 100]},
-                        'bar': {'color': "#1f77b4"},
-                        'steps': [
-                            {'range': [0, 30], 'color': "#ffcccc"},
-                            {'range': [30, 70], 'color': "#fff2cc"},
-                            {'range': [70, 100], 'color': "#d9ead3"}
-                        ]
-                    }
-                ))
-                fig_gauge.update_layout(height=300)
-                st.plotly_chart(fig_gauge, use_container_width=True)
-            else:
-                st.error("Erreur de communication avec l'API FastAPI.")
+            model = joblib.load(BASE_DIR / "mlp_model.joblib")
+            scaler = joblib.load(BASE_DIR / "scaler.joblib")
+            df_input = pd.DataFrame([payload])
+            scaled_data = scaler.transform(df_input)
+            raw_pred = model.predict(scaled_data)[0]
+            taux_resultat = float(np.clip(raw_pred, 0.0, 100.0))
+            prediction_reussie = True
+            st.info("API indisponible - Prédiction calculée via le modèle local (.joblib).")
         except Exception as e:
-            st.error(f"Vérifie que FastAPI est bien démarré sur http://127.0.0.1:8000. Erreur : {e}")
-    else:
-        st.info("Renseigne les paramètres à gauche et clique sur 'Prédire'.")
+            st.error(
+                f"Impossible d'effectuer la prédiction : {e}"
+            )
+
+    # Affichage des résultats
+    if prediction_reussie:
+        st.divider()
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.metric(
+                label="Taux d'assainissement prédit",
+                value=f"{taux_resultat:.2f} %",
+            )
+        with col2:
+            st.subheader("Niveau d'accès")
+            st.progress(min(int(taux_resultat), 100))

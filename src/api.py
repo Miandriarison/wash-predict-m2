@@ -1,56 +1,61 @@
-import numpy as np
 import joblib
-from sklearn.neural_network import MLPRegressor
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import numpy as np
+import pandas as pd
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
-def entrainer_et_evaluer_mlp(X_train, X_test, y_train, y_test):
-    print("🚀 Début de l'optimisation du MLPRegressor (GridSearchCV)...")
-    
-    param_grid = {
-        'hidden_layer_sizes': [(64, 32), (100, 50), (64, 32, 16)],
-        'activation': ['relu', 'tanh'],
-        'solver': ['adam'],
-        'alpha': [0.0001, 0.001, 0.01],
-        'learning_rate_init': [0.001, 0.01],
-        'max_iter': [500]
-    }
+app = FastAPI(
+    title="WASH Prediction API",
+    description="API de prédiction du taux d'accès aux services d'assainissement (M2 BIHAR)",
+    version="1.0.0",
+)
 
-    mlp = MLPRegressor(random_state=42)
-    grid_search = GridSearchCV(mlp, param_grid, cv=5, scoring='r2', n_jobs=-1)
-    grid_search.fit(X_train, y_train)
+# Chargement du modèle et du scaler
+try:
+    model = joblib.load("mlp_model.joblib")
+    scaler = joblib.load("scaler.joblib")
+except Exception as e:
+    raise RuntimeError(
+        f"Erreur lors du chargement des fichiers .joblib : {e}"
+    )
 
-    best_model = grid_search.best_estimator_
-    print(f"✅ Meilleurs hyperparamètres : {grid_search.best_params_}")
 
-    # Prédictions sur le jeu de test
-    y_pred = best_model.predict(X_test)
+# Structure des données d'entrée
+class WashInput(BaseModel):
+    population: float
+    beneficiaires_latrine_basique_total: float
+    menages_latrine_amelioree_partagee: float
+    menages_latrine_amelioree_non_partagee: float
+    milieu_URBAIN: int  # 1 pour Urbain, 0 pour Rural
 
-    # Métriques exigées par le Cahier des Charges (Section 5.6)
-    mae = mean_absolute_error(y_test, y_pred)
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = np.sqrt(mse)
-    r2 = r2_score(y_test, y_pred)
 
-    print("\n📊 --- PERFORMANCES DU MLP REGRESSOR ---")
-    print(f"🎯 MAE  (Erreur Absolue Moyenne) : {mae:.2f}%")
-    print(f"🎯 RMSE (Racine Erreur Quadratique) : {rmse:.2f}%")
-    print(f"🎯 R²   (Coefficient de Détermination) : {r2:.4f}")
+@app.get("/")
+def root():
+    return {"status": "online", "message": "API WASH Predict opérationnelle"}
 
-    # Comparaison avec la Régression Linéaire (Baseline - Section 5.6)
-    lr = LinearRegression()
-    lr.fit(X_train, y_train)
-    y_pred_lr = lr.predict(X_test)
-    r2_lr = r2_score(y_test, y_pred_lr)
-    mae_lr = mean_absolute_error(y_test, y_pred_lr)
 
-    print("\n📈 --- COMPARAISON BASELINE (Régression Linéaire) ---")
-    print(f"🔹 MAE Régression Linéaire : {mae_lr:.2f}%")
-    print(f"🔹 R²  Régression Linéaire : {r2_lr:.4f}")
+@app.post("/predict")
+def predict_wash(data: WashInput):
+    try:
+        # Conversion de la requête en DataFrame avec les mêmes colonnes que lors de l'entraînement
+        input_dict = data.model_dump()
+        input_df = pd.DataFrame([input_dict])
 
-    # Sauvegarde du modèle
-    joblib.dump(best_model, 'mlp_model.joblib')
-    print("\n💾 Modèle MLPRegressor sauvegardé sous 'mlp_model.joblib'.")
+        # Standardisation des données
+        scaled_data = scaler.transform(input_df)
 
-    return best_model
+        # Prédiction avec le modèle MLP
+        prediction = model.predict(scaled_data)[0]
+
+        # Bornage logique entre 0% et 100%
+        taux_predit = float(np.clip(prediction, 0.0, 100.0))
+
+        return {
+            "taux_assainissement_predit": round(taux_predit, 2),
+            "unite": "%",
+            "statut": "Succès",
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Erreur de prédiction : {str(e)}"
+        )

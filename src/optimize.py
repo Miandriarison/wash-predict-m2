@@ -1,9 +1,14 @@
+import warnings
 import joblib
 import numpy as np
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import GridSearchCV
 from sklearn.neural_network import MLPRegressor
+
+# Filtrer les avertissements de convergence pour garder une console propre
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 
 def entrainer_et_evaluer_mlp(X_train, X_test, y_train, y_test):
@@ -16,11 +21,11 @@ def entrainer_et_evaluer_mlp(X_train, X_test, y_train, y_test):
         "alpha": [0.0001, 0.001, 0.01],
         "learning_rate_init": [0.001, 0.01],
         "max_iter": [1000],
-        'early_stopping': [True],  # Intégré dans le GridSearch
-        'n_iter_no_change': [15]
+        "tol": [1e-3],  # Tolérance réaliste pour valider la convergence
+        "early_stopping": [True],
+        "n_iter_no_change": [15],
     }
 
-    # Configuration recommandée pour la fiabilité et la convergence
     mlp = MLPRegressor(random_state=42)
     grid_search = GridSearchCV(
         mlp, param_grid, cv=5, scoring="r2", n_jobs=-1
