@@ -35,7 +35,7 @@ services:
     volumes:
       - .:/app                   # code, données Excel et fichiers produits (modèle, metrics.json, graphiques)
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy

@@ -21,6 +21,25 @@
   let minuteur = null;
   let controleur = null;
   let performanceChargee = false;
+  let derniere = null;                 // dernière simulation reçue (pour redessiner le graphique au changement de thème)
+
+  // ------------------------------------------------------------------ thème clair / sombre
+  const estSombre = () => document.documentElement.getAttribute('data-bs-theme') === 'dark';
+
+  function appliquerThemeGraphique() {
+    if (typeof Chart === 'undefined') return;
+    Chart.defaults.color = estSombre() ? '#c9d3e3' : '#44506a';
+    Chart.defaults.borderColor = estSombre() ? 'rgba(255,255,255,0.12)' : 'rgba(30,45,80,0.12)';
+  }
+
+  function basculerTheme() {
+    const sombre = !estSombre();
+    document.documentElement.setAttribute('data-bs-theme', sombre ? 'dark' : 'light');
+    try { localStorage.setItem('theme', sombre ? 'dark' : 'light'); } catch (_) { /* stockage indisponible */ }
+    $('#bascule-theme').textContent = sombre ? '☀️' : '🌙';
+    if (graphique) { graphique.destroy(); graphique = null; }
+    if (derniere) afficherGraphique(derniere);
+  }
 
   // ------------------------------------------------------------------ formats
   const nombre = (v, nd = 0) =>
@@ -162,6 +181,7 @@
       afficherErreur("Chart.js n'a pas pu être chargé (connexion internet ?) : le graphique est indisponible.");
       return;
     }
+    appliquerThemeGraphique();
     const jeux = jeuxDeDonnees(d);
     if (graphique) {
       graphique.data.labels = d.annees;
@@ -250,6 +270,7 @@
   }
 
   function afficher(d) {
+    derniere = d;
     $('#titre-territoire').textContent = d.territoire.libelle;
     $('#nb-communes').textContent = d.territoire.nb_communes > 1 ? `${nombre(d.territoire.nb_communes)} communes` : '1 commune';
     afficherIndicateurs(d);
@@ -321,18 +342,18 @@
           el('img', { src: `/api/performance/image/${cle}`, alt: legende, class: 'graphique-perf border rounded bg-white', loading: 'lazy' }),
           el('figcaption', { class: 'small text-body-secondary', text: legende }))));
 
+    const carte = (titre, classe, ...contenu) => el('div', { class: `card shadow-sm mb-3 carte-section ${classe}`.trim() },
+      el('div', { class: 'card-header en-tete-section' }, el('h3', { class: 'h6 text-uppercase mb-0', text: titre })),
+      el('div', { class: 'card-body' }, ...contenu));
+
     return [
-      el('div', { class: 'card shadow-sm mb-3' }, el('div', { class: 'card-body' },
-        el('h3', { class: 'h5', text: `Évaluation sur ${infos.annee_test ?? '?'} (année jamais vue à l'entraînement)` }),
+      carte(`Évaluation sur ${infos.annee_test ?? '?'} (année jamais vue à l'entraînement)`, '',
         el('div', { class: 'table-responsive' }, table),
-        el('p', { class: 'small text-body-secondary mb-0', text: 'R² mesure le niveau du taux (peu discriminant : la persistance obtient le même score) ; R² évolution mesure la progression annuelle, qui est le vrai test.' }))),
-      el('div', { class: 'card shadow-sm mb-3' }, el('div', { class: 'card-body' },
-        el('h3', { class: 'h5', text: 'Architecture du réseau' }),
-        el('p', { class: 'mb-0', text: archi }))),
+        el('p', { class: 'small text-body-secondary mb-0', text: 'R² mesure le niveau du taux (peu discriminant : la persistance obtient le même score) ; R² évolution mesure la progression annuelle, qui est le vrai test.' })),
+      carte('Architecture du réseau', '', el('p', { class: 'mb-0', text: archi })),
       el('div', { class: 'row g-3 mb-3' }, ...images),
-      el('div', { class: 'card shadow-sm mb-3 border-warning' }, el('div', { class: 'card-body' },
-        el('h3', { class: 'h5', text: '⚠️ Hypothèses et limites (à citer dans le mémoire)' }),
-        el('ul', { class: 'mb-0' }, ...p.limites.map((t) => el('li', { text: t }))))),
+      carte('⚠️ Hypothèses et limites (à citer dans le mémoire)', 'carte-alerte',
+        el('ul', { class: 'mb-0' }, ...p.limites.map((t) => el('li', { text: t })))),
     ];
   }
 
@@ -376,6 +397,8 @@
     for (const c of CHAMPS_SCENARIO) c.input.addEventListener('input', simulerBientot);
     $('#formulaire').addEventListener('submit', (e) => e.preventDefault());
 
+    $('#bascule-theme').textContent = estSombre() ? '☀️' : '🌙';
+    $('#bascule-theme').addEventListener('click', basculerTheme);
     $('#onglet-performance').addEventListener('shown.bs.tab', () => { if (!performanceChargee) chargerPerformance(); });
 
     majVisibiliteTerritoire();

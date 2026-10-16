@@ -7,13 +7,19 @@
   <meta name="description" content="Prévision du taux d'accès à l'assainissement par commune (réseau de neurones MLP), scénarios et besoin en latrines.">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="/static/style.css" rel="stylesheet">
+  <script>
+    try { document.documentElement.setAttribute("data-bs-theme", localStorage.getItem("theme") === "dark" ? "dark" : "light"); } catch (e) {}
+  </script>
 </head>
-<body class="bg-body-tertiary">
+<body>
 
 <header class="navbar navbar-dark bg-dark">
   <div class="container-fluid">
     <span class="navbar-brand mb-0 h1">💧 WASH Predict <small class="text-secondary fs-6 ms-2 d-none d-md-inline">Plateforme de prédiction et de suivi du taux d'assainissement</small></span>
-    <span class="text-secondary small d-none d-md-inline">Master 2 BIHAR · MLP · FastAPI</span>
+    <div class="d-flex align-items-center gap-3">
+      <span class="text-secondary small d-none d-md-inline">Master 2 BIHAR · MLP · FastAPI</span>
+      <button type="button" class="btn btn-sm btn-outline-light" id="bascule-theme" aria-label="Changer de thème (clair / sombre)" title="Thème clair / sombre">🌙</button>
+    </div>
   </div>
 </header>
 
@@ -22,7 +28,7 @@
 
     <!-- ===== Paramètres ===== -->
     <aside class="col-lg-3">
-      <form id="formulaire" class="card shadow-sm panneau-parametres" novalidate autocomplete="off">
+      <form id="formulaire" data-bs-theme="dark" class="card shadow-sm panneau-parametres" novalidate autocomplete="off">
         <div class="card-body">
           <h2 class="h5 mb-3">⚙️ Paramètres</h2>
 
@@ -103,23 +109,23 @@
           </div>
 
           <div class="row g-3 mb-3" id="indicateurs">
-            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-realisation">Réalisation</div><div class="valeur" id="kpi-realisation">—</div></div></div></div>
-            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-prevision">Prévision (MLP)</div><div class="valeur" id="kpi-prevision">—</div></div></div></div>
-            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-scenario">Avec scénario</div><div class="valeur" id="kpi-scenario">—</div><div class="small" id="kpi-gain"></div></div></div></div>
-            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-ecart">Écart à l'objectif</div><div class="valeur" id="kpi-ecart">—</div></div></div></div>
+            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi kpi-realisation"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-realisation">Réalisation</div><div class="valeur" id="kpi-realisation">—</div></div></div></div>
+            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi kpi-prevision"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-prevision">Prévision (MLP)</div><div class="valeur" id="kpi-prevision">—</div></div></div></div>
+            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi kpi-scenario"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-scenario">Avec scénario</div><div class="valeur" id="kpi-scenario">—</div><div class="small" id="kpi-gain"></div></div></div></div>
+            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi kpi-ecart"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-ecart">Écart à l'objectif</div><div class="valeur" id="kpi-ecart">—</div></div></div></div>
           </div>
 
-          <div class="card shadow-sm mb-3">
+          <div class="card shadow-sm mb-3 carte-section">
+            <div class="card-header en-tete-section"><h3 class="h6 text-uppercase mb-0" id="titre-graphique">Taux d'accès à l'assainissement de base</h3></div>
             <div class="card-body">
-              <h3 class="h6 text-uppercase text-body-secondary" id="titre-graphique">Taux d'accès à l'assainissement de base</h3>
               <div class="zone-graphique"><canvas id="graphique" role="img" aria-label="Courbes de réalisation, de prévision et d'objectif du taux d'assainissement"></canvas></div>
               <p class="small text-body-secondary mb-0 mt-2" id="note-retro" hidden>Les croix montrent la prédiction à un an du modèle sur les années passées. La vraie évaluation, sur une année jamais vue, est dans l'onglet « Performance du modèle ».</p>
             </div>
           </div>
 
-          <div class="card shadow-sm mb-3">
+          <div class="card shadow-sm mb-3 carte-section">
+            <div class="card-header en-tete-section"><h3 class="h6 text-uppercase mb-0">🏗️ Besoin sur le terrain</h3></div>
             <div class="card-body">
-              <h3 class="h5">🏗️ Besoin sur le terrain</h3>
               <p id="besoin-intro" class="mb-3"></p>
               <div class="row g-3" id="besoin-cas"></div>
               <div id="besoin-latrines" class="alert alert-info mt-3 mb-0" hidden></div>
@@ -133,9 +139,9 @@
             </div>
           </div>
 
-          <div class="card shadow-sm mb-3" id="carte-tableau" hidden>
+          <div class="card shadow-sm mb-3 carte-section" id="carte-tableau" hidden>
+            <div class="card-header en-tete-section"><h3 class="h6 text-uppercase mb-0">Valeurs par année</h3></div>
             <div class="card-body">
-              <h3 class="h6 text-uppercase text-body-secondary">Valeurs par année</h3>
               <div class="table-responsive">
                 <table class="table table-sm table-striped align-middle text-end" id="table-annuelle">
                   <thead><tr><th class="text-start">Année</th><th>Réalisation</th><th>Prévision MLP</th><th>Avec scénario</th><th>Linéaire (actuel)</th><th>Objectif</th></tr></thead>

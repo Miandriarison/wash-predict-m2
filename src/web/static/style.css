@@ -1,13 +1,65 @@
-/* Compléments à Bootstrap 5 : uniquement ce que Bootstrap ne fournit pas. */
-.panneau-parametres { position: static; }
+/* Compléments à Bootstrap 5 : hiérarchie visuelle (fonds teintés, bandeaux, accents), pas de page « toute blanche ». */
+:root {
+  --fond: #e6ecf5;            /* fond de page : bleu-gris doux */
+  --carte: #ffffff;
+  --bord: #c8d3e4;
+  --bandeau: #dde6f4;         /* bandeau de titre des cartes */
+  --accent: #3b4a8a;
+  --marine: #1f2a44;          /* panneau de paramètres et barre du haut */
+  --c-realisation: #e8604c;
+  --c-prevision: #3b4a8a;
+  --c-scenario: #f39c12;
+  --c-objectif: #00b39f;
+  --c-lineaire: #95a5a6;
+}
+[data-bs-theme="dark"] {
+  --fond: #0e131b;
+  --carte: #18202d;
+  --bord: #2b3750;
+  --bandeau: #222d42;
+  --accent: #8fa2e8;
+}
+
+body { background: var(--fond); }
+.navbar { background: var(--marine) !important; border-bottom: 3px solid var(--c-objectif); }
+
+/* Cartes : fond propre à chaque thème, bandeau de titre teinté */
+.card { background: var(--carte); border-color: var(--bord); }
+.en-tete-section {
+  background: var(--bandeau);
+  border-bottom: 1px solid var(--bord);
+  border-left: 5px solid var(--accent);
+  color: var(--bs-body-color);
+  letter-spacing: .03em;
+}
+.carte-alerte { border-color: #f0ad4e; }
+.carte-alerte .en-tete-section { border-left-color: #f0ad4e; }
+
+/* Panneau de paramètres : bloc marine, toujours sombre, pour structurer la page */
+.panneau-parametres { background: var(--marine); border-color: #2c3a5e; color: #e6ecf5; }
+.panneau-parametres hr { border-color: #55658f; opacity: .6; }
+.panneau-parametres .form-control, .panneau-parametres .form-select { background-color: #172038; border-color: #3a4a74; }
+.panneau-parametres .form-range { accent-color: var(--c-objectif); }
 @media (min-width: 992px) {
   .panneau-parametres { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
 }
+
+/* Indicateurs : une couleur par courbe (la même que dans le graphique) */
+.kpi { border-top: 4px solid var(--couleur, var(--accent)); }
+.kpi-realisation { --couleur: var(--c-realisation); }
+.kpi-prevision   { --couleur: var(--c-prevision); }
+.kpi-scenario    { --couleur: var(--c-scenario); }
+.kpi-ecart       { --couleur: var(--c-objectif); }
 .kpi .valeur { font-size: 1.75rem; font-weight: 600; line-height: 1.2; }
+
 .zone-graphique { position: relative; height: 420px; }
 .carte-cas { border-top: 4px solid var(--couleur, #6c757d); }
 .carte-cas .valeur { font-size: 1.3rem; font-weight: 600; }
 .navbar-brand { white-space: normal; }
-.table th { white-space: nowrap; }
+
+/* Onglets et tableaux */
+.nav-tabs .nav-link.active { font-weight: 600; border-top: 3px solid var(--accent); background: var(--carte); }
+.table thead th { white-space: nowrap; background: var(--bandeau); }
+.table { --bs-table-bg: transparent; }
+details > summary { cursor: pointer; font-weight: 600; }
 img.graphique-perf { max-width: 100%; height: auto; }
-.form-range { accent-color: #3b4a8a; }
