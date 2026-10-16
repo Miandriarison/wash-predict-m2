@@ -16,23 +16,31 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 SCALER_PATH = ROOT_DIR / "scaler.joblib"
 
 # L'ORDRE de cette liste doit être identique à l'entraînement, à l'API et à l'application
-FEATURES = ["taux_lag1", "delta_lag1", "log_population", "milieu_URBAIN"]
+# delta_moy = progression annuelle MOYENNE passée de la commune (depuis sa première année connue) :
+# elle lisse le bruit d'une année à l'autre et capte la vitesse propre de chaque commune.
+FEATURES = ["taux_lag1", "delta_lag1", "delta_moy", "log_population", "milieu_URBAIN"]
 # Les années postérieures à ANNEE_MAX_MODELE (ex. 2025 : saut de +19 points) ne servent ni à
 # l'entraînement ni au test : elles sont le point de départ des prévisions, et la rupture est
 # expliquée dans le mémoire plutôt qu'apprise comme une tendance régulière.
 ANNEE_MAX_MODELE = 2024
 
 
-def construire_features(taux_lag1, taux_lag2, population, milieu_urbain, index=None) -> pd.DataFrame:
-    """Construit les variables d'entrée (utilisé à l'entraînement ET en prévision)."""
+def construire_features(taux_lag1, taux_lag2, population, milieu_urbain, index=None, delta_moy=None) -> pd.DataFrame:
+    """Construit les variables d'entrée (utilisé à l'entraînement ET en prévision).
+
+    delta_moy : progression moyenne passée ; si absente, on la remplace par la dernière progression.
+    """
     lag1 = np.atleast_1d(np.asarray(taux_lag1, dtype=float))
     lag2 = np.atleast_1d(np.asarray(taux_lag2, dtype=float))
     pop = np.atleast_1d(np.asarray(population, dtype=float))
     urb = np.atleast_1d(np.asarray(milieu_urbain, dtype=int))
+    delta1 = lag1 - lag2
+    moy = delta1 if delta_moy is None else np.atleast_1d(np.asarray(delta_moy, dtype=float))
     return pd.DataFrame(
         {
             "taux_lag1": lag1,
-            "delta_lag1": lag1 - lag2,
+            "delta_lag1": delta1,
+            "delta_moy": moy,
             "log_population": np.log1p(pop),
             "milieu_URBAIN": urb,
         },
@@ -62,12 +70,16 @@ def construire_paires(df: pd.DataFrame) -> pd.DataFrame:
     d["taux_lag1"] = g["taux_assainissement"].shift(1)
     d["taux_lag2"] = g["taux_assainissement"].shift(2)
     d["annee_lag2"] = g["annee"].shift(2)
+    d["taux_debut"] = g["taux_assainissement"].transform("first")
+    d["annee_debut"] = g["annee"].transform("first")
+    # progression moyenne passée = (taux N-1 - taux de la 1re année) / nombre d'années écoulées
+    d["delta_moy"] = (d["taux_lag1"] - d["taux_debut"]) / (d["annee"] - 1 - d["annee_debut"]).replace(0, np.nan)
 
     # On ne garde que les années réellement consécutives
     paires = d[(d["annee"] - d["annee_lag2"]) == 2].copy()
     X = construire_features(
         paires["taux_lag1"], paires["taux_lag2"], paires["population"],
-        paires["milieu_URBAIN"], index=paires.index,
+        paires["milieu_URBAIN"], index=paires.index, delta_moy=paires["delta_moy"],
     )
     out = paires[["commune_id", "nom_region", "nom_district", "nom_commune", "annee", "population"]].copy()
     out = out.join(X)
@@ -76,13 +88,14 @@ def construire_paires(df: pd.DataFrame) -> pd.DataFrame:
     return out.reset_index(drop=True)
 
 
-def prepare_matrices(annee_test=None):
+def prepare_matrices(annee_test=None, panel=None):
     """Découpage TEMPOREL : entraînement = années avant annee_test, test = annee_test.
 
     Le scaler est ajusté sur l'entraînement seulement (pas de fuite).
     Retourne un dictionnaire de matrices et de métadonnées.
+    panel : tableau déjà chargé (sinon lecture dans PostgreSQL).
     """
-    paires = construire_paires(charger_panel())
+    paires = construire_paires(charger_panel() if panel is None else panel)
     paires = paires[paires["annee"] <= ANNEE_MAX_MODELE].reset_index(drop=True)
     annees = sorted(paires["annee"].unique())
     annee_test = annee_test or annees[-1]
@@ -105,6 +118,7 @@ def prepare_matrices(annee_test=None):
         "annee_test": int(annee_test),
         "lag1_test": test["taux_lag1"].to_numpy(),
         "delta_lag1_test": test["delta_lag1"].to_numpy(),
+        "delta_moy_test": test["delta_moy"].to_numpy(),
         "taux_test": test["taux"].to_numpy(),
         "scaler": scaler,
         "paires": paires,

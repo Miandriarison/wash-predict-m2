@@ -1,4 +1,4 @@
-"""Génère les années 2020-2023 (DONNÉES SIMULÉES) à partir de la vraie année 2024.
+"""Génère les années 2015-2023 (DONNÉES SIMULÉES) à partir de la vraie année 2024.
 
 Méthode (à documenter dans le mémoire) :
 - Population : on remonte le temps depuis 2024 avec une croissance de 2,5 %/an en moyenne, variable
@@ -20,8 +20,11 @@ import pandas as pd
 
 SEED = 42
 CROISSANCE_MOY, CROISSANCE_SD = 0.025, 0.003
-# Taux national cible (en %, pondéré par la population). 2020-2021 : choisis, pas lus sur le graphique.
-CIBLES = {2023: 39.0, 2022: 38.0, 2021: 37.5, 2020: 36.8}
+# Taux national cible (en %, pondéré par la population).
+# 2022-2023 : lus sur le graphique de référence. 2015-2021 : HYPOTHÈSES (trajectoire plausible, pas des données).
+CIBLES = {2023: 39.0, 2022: 38.0, 2021: 37.5, 2020: 36.8,
+          2019: 35.8, 2018: 34.9, 2017: 34.0, 2016: 33.0, 2015: 32.0}
+ANNEES = sorted(CIBLES, reverse=True)  # 2023 -> 2015 : on remonte le temps depuis 2024
 BRUIT_SD = 0.008        # bruit annuel par commune (en fraction : 0,8 point)
 HETEROGENEITE_SD = 0.6  # dispersion du facteur propre à chaque commune
 TAUX_MAX = 0.99
@@ -31,22 +34,21 @@ def taux_national(taux, pop):
     return float((taux * pop).sum() / pop.sum())
 
 
-def main(chemin_2024, dossier_sortie):
-    rng = np.random.default_rng(SEED)
-    d24 = pd.read_excel(chemin_2024)
+def generer(d24: pd.DataFrame, bruit_sd: float = BRUIT_SD, seed: int = SEED) -> dict:
+    """Retourne {annee: tableau} pour 2023 à 2015 à partir du tableau réel de 2024."""
+    rng = np.random.default_rng(seed)
     cles = ["REGION", "DISTRICT", "COMMUNE", "MILIEU"]
     n = len(d24)
     facteur = rng.lognormal(0.0, HETEROGENEITE_SD, n)  # propre à chaque commune, fixe dans le temps
 
     pop = d24["POPULATION"].to_numpy(float)
     taux = d24["TAUX"].to_numpy(float)
-    sortie = Path(dossier_sortie)
-    sortie.mkdir(parents=True, exist_ok=True)
+    resultat = {}
 
-    for annee in (2023, 2022, 2021, 2020):
+    for annee in ANNEES:
         g = np.clip(rng.normal(CROISSANCE_MOY, CROISSANCE_SD, n), 0.02, 0.03)
         pop_prec = np.round(pop / (1 + g))
-        bruit = rng.normal(0.0, BRUIT_SD, n)
+        bruit = rng.normal(0.0, bruit_sd, n)
         cible = CIBLES[annee] / 100
 
         def candidat(k):
@@ -69,11 +71,20 @@ def main(chemin_2024, dossier_sortie):
         out["POPULATION"] = pop_prec
         out["BENEFICIAIRES_TOTAL"] = benef
         out["TAUX"] = taux_prec
+        resultat[annee] = out
+        pop, taux = pop_prec, taux_prec
+    return resultat
+
+
+def main(chemin_2024, dossier_sortie):
+    d24 = pd.read_excel(chemin_2024)
+    sortie = Path(dossier_sortie)
+    sortie.mkdir(parents=True, exist_ok=True)
+    for annee, out in sorted(generer(d24).items()):
         with pd.ExcelWriter(sortie / f"SEAM_{annee}.xlsx") as w:
             out.to_excel(w, sheet_name=f"DONNEES_{annee}", index=False)
-        print(annee, "taux national", round(100 * taux_national(taux_prec, pop_prec), 2),
-              "| population", int(pop_prec.sum()))
-        pop, taux = pop_prec, taux_prec
+        print(annee, "taux national", round(100 * taux_national(out["TAUX"].to_numpy(), out["POPULATION"].to_numpy()), 2),
+              "| population", int(out["POPULATION"].sum()))
 
 
 if __name__ == "__main__":

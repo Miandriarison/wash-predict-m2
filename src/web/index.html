@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WASH Predict — M2 BIHAR</title>
+  <meta name="description" content="Prévision du taux d'accès à l'assainissement par commune (réseau de neurones MLP), scénarios et besoin en latrines.">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/style.css" rel="stylesheet">
+</head>
+<body class="bg-body-tertiary">
+
+<header class="navbar navbar-dark bg-dark">
+  <div class="container-fluid">
+    <span class="navbar-brand mb-0 h1">💧 WASH Predict <small class="text-secondary fs-6 ms-2 d-none d-md-inline">Plateforme de prédiction et de suivi du taux d'assainissement</small></span>
+    <span class="text-secondary small d-none d-md-inline">Master 2 BIHAR · MLP · FastAPI</span>
+  </div>
+</header>
+
+<main class="container-fluid py-3">
+  <div class="row g-3">
+
+    <!-- ===== Paramètres ===== -->
+    <aside class="col-lg-3">
+      <form id="formulaire" class="card shadow-sm panneau-parametres" novalidate autocomplete="off">
+        <div class="card-body">
+          <h2 class="h5 mb-3">⚙️ Paramètres</h2>
+
+          <div class="mb-3">
+            <label for="type" class="form-label">Territoire</label>
+            <select id="type" class="form-select">
+              <option value="national">Madagascar (toutes les communes)</option>
+              <option value="region">Une région</option>
+              <option value="commune">Une commune</option>
+            </select>
+          </div>
+          <div class="mb-3" id="bloc-region" hidden>
+            <label for="region" class="form-label">Région</label>
+            <select id="region" class="form-select"></select>
+          </div>
+          <div class="mb-3" id="bloc-commune" hidden>
+            <label for="commune" class="form-label">Commune</label>
+            <select id="commune" class="form-select"></select>
+          </div>
+
+          <div class="mb-3">
+            <label for="nb_annees" class="form-label d-flex justify-content-between">Années à prévoir <output id="sortie-nb_annees" class="fw-semibold">4</output></label>
+            <input type="range" class="form-range" id="nb_annees" min="1" max="5" step="1" value="4">
+          </div>
+          <div class="mb-3">
+            <label for="objectif" class="form-label">🎯 Taux cible en <span id="annee-cible">—</span> (%)</label>
+            <input type="number" class="form-control" id="objectif" min="0" max="100" step="5" value="90" required>
+          </div>
+
+          <hr>
+          <h3 class="h6">🧪 Scénario</h3>
+          <p class="text-body-secondary small">Hypothèses de progression : 0 % = aucune action, 100 % = effet maximal.</p>
+          <div id="curseurs-scenario"></div>
+          <div class="d-flex justify-content-between align-items-baseline mt-2">
+            <span class="small">Effet sur la progression annuelle</span>
+            <span class="fs-4 fw-semibold" id="effet" aria-live="polite">+0 %</span>
+          </div>
+
+          <hr>
+          <h3 class="h6">🏗️ Terrain</h3>
+          <div class="mb-3">
+            <label for="latrines_par_an" class="form-label">Simulation : latrines construites par an <span class="text-body-secondary">(0 = aucune)</span></label>
+            <input type="number" class="form-control" id="latrines_par_an" min="0" step="10" value="0">
+          </div>
+          <div class="mb-3">
+            <label for="personnes_par_latrine" class="form-label">Personnes servies par latrine <span class="text-body-secondary">(hypothèse)</span></label>
+            <input type="number" class="form-control" id="personnes_par_latrine" min="1" max="50" step="1" value="5" required>
+          </div>
+          <div>
+            <label for="croissance" class="form-label">Croissance de la population (%/an)</label>
+            <input type="number" class="form-control" id="croissance" min="0" max="10" step="0.1" value="2.5" required>
+            <div class="form-text">2,5 % = valeur donnée par l'encadreur.</div>
+          </div>
+        </div>
+      </form>
+    </aside>
+
+    <!-- ===== Résultats ===== -->
+    <section class="col-lg-9" aria-live="polite" aria-busy="false" id="resultats">
+      <div id="alertes"></div>
+
+      <ul class="nav nav-tabs" id="onglets" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="onglet-simulation" data-bs-toggle="tab" data-bs-target="#volet-simulation" type="button" role="tab" aria-controls="volet-simulation" aria-selected="true">📊 Simulation</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="onglet-performance" data-bs-toggle="tab" data-bs-target="#volet-performance" type="button" role="tab" aria-controls="volet-performance" aria-selected="false">📈 Performance du modèle</button>
+        </li>
+      </ul>
+
+      <div class="tab-content pt-3">
+        <!-- ----- Simulation ----- -->
+        <div class="tab-pane fade show active" id="volet-simulation" role="tabpanel" aria-labelledby="onglet-simulation" tabindex="0">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <h2 class="h4 mb-0" id="titre-territoire">Chargement…</h2>
+            <span class="badge text-bg-light border" id="nb-communes"></span>
+            <div class="spinner-border spinner-border-sm text-secondary ms-auto" id="chargement" role="status" hidden><span class="visually-hidden">Calcul en cours…</span></div>
+          </div>
+
+          <div class="row g-3 mb-3" id="indicateurs">
+            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-realisation">Réalisation</div><div class="valeur" id="kpi-realisation">—</div></div></div></div>
+            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-prevision">Prévision (MLP)</div><div class="valeur" id="kpi-prevision">—</div></div></div></div>
+            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-scenario">Avec scénario</div><div class="valeur" id="kpi-scenario">—</div><div class="small" id="kpi-gain"></div></div></div></div>
+            <div class="col-6 col-xl-3"><div class="card h-100 shadow-sm kpi"><div class="card-body"><div class="text-body-secondary small" id="kpi-lib-ecart">Écart à l'objectif</div><div class="valeur" id="kpi-ecart">—</div></div></div></div>
+          </div>
+
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <h3 class="h6 text-uppercase text-body-secondary" id="titre-graphique">Taux d'accès à l'assainissement de base</h3>
+              <div class="zone-graphique"><canvas id="graphique" role="img" aria-label="Courbes de réalisation, de prévision et d'objectif du taux d'assainissement"></canvas></div>
+              <p class="small text-body-secondary mb-0 mt-2" id="note-retro" hidden>Les croix montrent la prédiction à un an du modèle sur les années passées. La vraie évaluation, sur une année jamais vue, est dans l'onglet « Performance du modèle ».</p>
+            </div>
+          </div>
+
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <h3 class="h5">🏗️ Besoin sur le terrain</h3>
+              <p id="besoin-intro" class="mb-3"></p>
+              <div class="row g-3" id="besoin-cas"></div>
+              <div id="besoin-latrines" class="alert alert-info mt-3 mb-0" hidden></div>
+              <details class="mt-3">
+                <summary>Détail année par année</summary>
+                <div class="table-responsive mt-2">
+                  <table class="table table-sm table-striped align-middle text-end" id="table-besoin"><thead></thead><tbody></tbody></table>
+                </div>
+              </details>
+              <p class="small text-body-secondary mb-0 mt-3" id="besoin-note"></p>
+            </div>
+          </div>
+
+          <div class="card shadow-sm mb-3" id="carte-tableau" hidden>
+            <div class="card-body">
+              <h3 class="h6 text-uppercase text-body-secondary">Valeurs par année</h3>
+              <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle text-end" id="table-annuelle">
+                  <thead><tr><th class="text-start">Année</th><th>Réalisation</th><th>Prévision MLP</th><th>Avec scénario</th><th>Linéaire (actuel)</th><th>Objectif</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ----- Performance ----- -->
+        <div class="tab-pane fade" id="volet-performance" role="tabpanel" aria-labelledby="onglet-performance" tabindex="0">
+          <div id="performance-contenu"><p class="text-body-secondary">Chargement…</p></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="container-fluid py-3 small text-body-secondary">
+  Les chiffres sont des simulations pour un mémoire de Master 2 : ce ne sont ni un budget, ni une mesure de terrain.
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+﻿bruit_points,methode,MAE,MAE_ecart_type,R2_evolution
+0.0,MLP (RNA),0.556,0.115,-5.824
+0.0,Persistance (taux N = taux N-1),0.387,0.011,-2.277
+0.0,Progression moyenne passée (par commune),0.55,0.011,-5.573
+0.0,Random Forest,0.555,0.033,-5.354
+0.0,Régression linéaire (apprise),0.502,0.018,-4.02
+0.0,Tendance linéaire par commune,0.617,0.02,-7.33
+0.0,Tendance nationale (méthode actuelle),0.537,0.013,-3.998
+0.4,MLP (RNA),0.526,0.007,-0.92
+0.4,Persistance (taux N = taux N-1),0.481,0.013,-0.648
+0.4,Progression moyenne passée (par commune),0.628,0.003,-1.765
+0.4,Random Forest,0.507,0.008,-0.808
+0.4,Régression linéaire (apprise),0.537,0.005,-0.931
+0.4,Tendance linéaire par commune,0.744,0.016,-2.932
+0.4,Tendance nationale (méthode actuelle),0.596,0.008,-1.208
+0.8,MLP (RNA),0.755,0.009,-0.261
+0.8,Persistance (taux N = taux N-1),0.729,0.014,-0.203
+0.8,Progression moyenne passée (par commune),0.858,0.01,-0.671
+0.8,Random Forest,0.745,0.01,-0.24
+0.8,Régression linéaire (apprise),0.762,0.006,-0.284
+0.8,Tendance linéaire par commune,1.077,0.016,-1.654
+0.8,Tendance nationale (méthode actuelle),0.804,0.013,-0.404
+1.6,MLP (RNA),1.336,0.021,-0.071
+1.6,Persistance (taux N = taux N-1),1.316,0.016,-0.053
+1.6,Progression moyenne passée (par commune),1.453,0.02,-0.291
+1.6,Random Forest,1.333,0.019,-0.078
+1.6,Régression linéaire (apprise),1.346,0.019,-0.092
+1.6,Tendance linéaire par commune,1.886,0.02,-1.211
+1.6,Tendance nationale (méthode actuelle),1.365,0.021,-0.12
+3.0,MLP (RNA),2.386,0.032,-0.013
+3.0,Persistance (taux N = taux N-1),2.38,0.025,-0.016
+3.0,Progression moyenne passée (par commune),2.569,0.033,-0.194
+3.0,Random Forest,2.393,0.032,-0.027
+3.0,Régression linéaire (apprise),2.403,0.031,-0.029
+3.0,Tendance linéaire par commune,3.353,0.024,-1.104
+3.0,Tendance nationale (méthode actuelle),2.418,0.032,-0.042

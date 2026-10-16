@@ -1,0 +1,56 @@
+# Lancement :  docker compose up -d db api
+# Pipeline  :  docker compose run --rm pipeline      (ETL -> nettoyage -> entraînement du MLP)
+# Les réglages viennent du fichier .env (mêmes noms que pour src/database.py : DB_NAME, DB_USER, DB_PASS).
+name: wash-predict
+
+x-environnement: &environnement
+  DB_HOST: db                    # dans Docker, la base s'appelle « db » (et non localhost)
+  DB_PORT: "5432"
+  DB_NAME: ${DB_NAME:-wash_seam_db}
+  DB_USER: ${DB_USER:-postgres}
+  DB_PASS: ${DB_PASS:?Définis DB_PASS dans le fichier .env}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-wash_seam_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASS:?Définis DB_PASS dans le fichier .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro   # tables créées au premier démarrage
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    # Pas de « ports » : la base n'est joignable que par les autres conteneurs
+    # (et ne gêne pas ton PostgreSQL local).
+
+  api:
+    build: .
+    environment: *environnement
+    volumes:
+      - .:/app                   # code, données Excel et fichiers produits (modèle, metrics.json, graphiques)
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  pipeline:
+    build: .
+    profiles: ["pipeline"]       # ne démarre pas avec « up » : lancé à la demande
+    environment: *environnement
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c "python src/etl_pipeline.py && python src/cleaning.py && python src/optimize.py"
+
+volumes:
+  pgdata:

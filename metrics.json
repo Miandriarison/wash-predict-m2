@@ -1,11 +1,11 @@
 {
   "modeles": {
     "Tendance nationale (méthode actuelle)": {
-      "MSE": 0.8435,
-      "RMSE": 0.9184,
-      "MAE": 0.7353,
-      "R2": 0.9991,
-      "R2_evolution": -0.2153
+      "MSE": 0.9599,
+      "RMSE": 0.9798,
+      "MAE": 0.792,
+      "R2": 0.999,
+      "R2_evolution": -0.383
     },
     "Persistance (taux N = taux N-1)": {
       "MSE": 0.8492,
@@ -21,26 +21,33 @@
       "R2": 0.998,
       "R2_evolution": -1.6263
     },
+    "Progression moyenne passée (par commune)": {
+      "MSE": 1.1587,
+      "RMSE": 1.0764,
+      "MAE": 0.851,
+      "R2": 0.9988,
+      "R2_evolution": -0.6714
+    },
     "Régression linéaire (apprise)": {
-      "MSE": 0.8874,
-      "RMSE": 0.942,
-      "MAE": 0.7589,
-      "R2": 0.999,
-      "R2_evolution": -0.2785
+      "MSE": 0.8807,
+      "RMSE": 0.9384,
+      "MAE": 0.7538,
+      "R2": 0.9991,
+      "R2_evolution": -0.2688
     },
     "Random Forest": {
-      "MSE": 0.9798,
-      "RMSE": 0.9899,
-      "MAE": 0.7847,
-      "R2": 0.9989,
-      "R2_evolution": -0.4116
+      "MSE": 0.856,
+      "RMSE": 0.9252,
+      "MAE": 0.734,
+      "R2": 0.9991,
+      "R2_evolution": -0.2333
     },
     "MLP (RNA)": {
-      "MSE": 0.9977,
-      "RMSE": 0.9989,
-      "MAE": 0.8049,
-      "R2": 0.9989,
-      "R2_evolution": -0.4374
+      "MSE": 0.7988,
+      "RMSE": 0.8938,
+      "MAE": 0.7141,
+      "R2": 0.9991,
+      "R2_evolution": -0.1509
     }
   },
   "infos": {
@@ -49,27 +56,26 @@
     "variables": [
       "taux_lag1",
       "delta_lag1",
+      "delta_moy",
       "log_population",
       "milieu_URBAIN"
     ],
     "hidden_layer_sizes": [
       64,
-      32,
-      16
+      32
     ],
-    "nb_couches_cachees": 3,
+    "nb_couches_cachees": 2,
     "activation": "relu",
-    "n_train": 3442,
+    "n_train": 12047,
     "n_test": 1721,
     "modele_de_production": "réentraîné sur toutes les années disponibles",
     "meilleurs_parametres": {
       "activation": "relu",
-      "alpha": 0.001,
+      "alpha": 0.0001,
       "early_stopping": true,
       "hidden_layer_sizes": [
         64,
-        32,
-        16
+        32
       ],
       "learning_rate_init": 0.01,
       "max_iter": 1000,
@@ -78,6 +84,6 @@
       "tol": 0.0001,
       "random_state": 42
     },
-    "r2_validation_temporelle": -0.1818
+    "r2_validation_temporelle": 0.1977
   }
 }

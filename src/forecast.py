@@ -62,26 +62,32 @@ def preparer_depart(panel: pd.DataFrame):
     ].rename(columns={"population": "pop_depart", "taux_assainissement": "taux_depart"})
     dep = dep.merge(pente, on="commune_id", how="left")
     dep["delta_depart"] = dep["delta_depart"].fillna(0.0)
+    # nombre de progressions annuelles observées sur la période régulière (ex. 2020-2024 -> 4)
+    dep["n_hist"] = int(reg["annee"].max() - d["annee"].min())
     dep["milieu_URBAIN"] = (dep["milieu"].astype(str).str.strip().str.upper() == "URBAIN").astype(int)
     return dep.reset_index(drop=True), annee_depart
 
 
 def prevoir(model, scaler, taux_depart, delta_depart, pop_depart, milieu_urbain, nb_annees=4, effet=0.0,
-            croissance_pop=CROISSANCE_POPULATION):
+            croissance_pop=CROISSANCE_POPULATION, n_hist=4):
     """Prévision récursive pour un ensemble de communes (tableaux numpy). Retourne (taux, population), forme (n, nb_annees)."""
     taux_prev = np.asarray(taux_depart, dtype=float).copy()
     delta_prev = np.asarray(delta_depart, dtype=float).copy()
     pop = np.asarray(pop_depart, dtype=float).copy()
     urb = np.asarray(milieu_urbain, dtype=int)
 
+    delta_moy = delta_prev.copy()  # progression moyenne passée (départ = pente habituelle)
+    n = float(n_hist)
     taux_out, pop_out = [], []
     for _ in range(int(nb_annees)):
         pop = pop * (1 + croissance_pop)
-        X = construire_features(taux_prev, taux_prev - delta_prev, pop, urb)
+        X = construire_features(taux_prev, taux_prev - delta_prev, pop, urb, delta_moy=delta_moy)
         # progression jamais négative ; l'effet du scénario s'applique à la progression, sans se cumuler
         delta_hat = np.maximum(model.predict(scaler.transform(X)), 0.0)
         taux_prev = np.clip(taux_prev + (1 + effet) * delta_hat, 0.0, 100.0)
         delta_prev = delta_hat
+        delta_moy = (delta_moy * n + delta_hat) / (n + 1)
+        n += 1
         taux_out.append(taux_prev.copy())
         pop_out.append(pop.copy())
     return np.column_stack(taux_out), np.column_stack(pop_out)
@@ -93,6 +99,7 @@ def prevoir_communes(dep: pd.DataFrame, annee_depart: int, model, scaler, nb_ann
     taux, pops = prevoir(
         model, scaler, dep["taux_depart"], dep["delta_depart"], dep["pop_depart"],
         dep["milieu_URBAIN"], nb_annees, effet, croissance_pop,
+        int(dep["n_hist"].iloc[0]) if "n_hist" in dep else 4,
     )
     lignes = []
     for k in range(taux.shape[1]):

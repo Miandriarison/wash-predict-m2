@@ -224,7 +224,11 @@ with tab_nat:
     tableau = pd.DataFrame({"Réalisation": hist_n, "Prévision MLP": pb_n, "Avec scénario": ps_n,
                             "Linéaire (actuel)": lin_n, "Objectif": obj_n}).round(2)
     tableau.index.name = "Année"
-    st.dataframe(tableau)
+    # l'objectif démarre en 2025 (point de départ du graphique) : pas affiché dans le tableau
+    tableau.loc[tableau.index <= annee_depart, "Objectif"] = float("nan")
+    # texte : « — » pour les cases vides (sinon Streamlit affiche « None »)
+    tableau_txt = tableau.apply(lambda col: col.map(lambda v: "—" if pd.isna(v) else f"{v:.2f}"))
+    st.dataframe(tableau_txt)
     st.caption(
         f"Communes plafonnées à 100 % en {annee_depart} : elles ne progressent plus, ce qui ralentit la hausse "
         "du taux national."
@@ -256,9 +260,9 @@ with tab_perf:
 
     with st.expander("⚠️ Hypothèses et limites (à citer dans le mémoire)"):
         st.markdown(
-            "- Les années 2020-2023 et 2025 sont **générées** à partir de 2024 (population +2,5 %/an, progression fixe par commune) ; seules les données 2024 sont réelles.\n"
+            "- Les années 2015-2023 et 2025 sont **simulées** à partir des données réelles de 2024 (population ≈ +2,5 %/an, progression propre à chaque commune avec une part aléatoire) ; seules les données 2024 sont réelles.\n"
             "- 2025 est une **rupture** (+19 points) : elle est exclue de l'entraînement et sert de point de départ des prévisions.\n"
-            "- Sur ces données régulières, une tendance linéaire par commune peut égaler le MLP ; le MLP est surtout comparé à la droite nationale actuelle.\n"
+            "- Sur ces données, le MLP fait à peu près aussi bien que les méthodes simples (persistance, tendance nationale) : la progression annuelle y est en grande partie aléatoire, aucune méthode ne la prédit mieux qu'une moyenne.\n"
             "- L'effet de la sensibilisation, de l'éducation et des campagnes de santé est une **hypothèse** paramétrable : ces variables n'existent pas dans la base.\n"
             "- Population : +2,5 % par an dans les prévisions."
         )

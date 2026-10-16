@@ -56,11 +56,22 @@ def comparer_modeles(mlp, d) -> dict:
         "Tendance nationale (méthode actuelle)": np.full(n, d["y_train"].mean()),
         "Persistance (taux N = taux N-1)": np.zeros(n),
         "Tendance linéaire par commune": d["delta_lag1_test"],
+        "Progression moyenne passée (par commune)": d["delta_moy_test"],
         "Régression linéaire (apprise)": lr.predict(d["X_test"]),
         "Random Forest": rf.predict(d["X_test"]),
         "MLP (RNA)": mlp.predict(d["X_test"]),
     }
     return {nom: calculer_metriques(d, p) for nom, p in predictions.items()}
+
+
+def evaluer_panel(panel, params=None) -> dict:
+    """Évalue toutes les méthodes sur un tableau en mémoire (sans base, sans sauvegarde).
+
+    Sert à l'analyse de sensibilité au bruit (sensibilite_bruit.py).
+    """
+    d = prepare_matrices(panel=panel)
+    mlp = MLPRegressor(**(params or PARAMS_PAR_DEFAUT)).fit(d["X_train"], d["y_train"])
+    return comparer_modeles(mlp, d)
 
 
 def tracer_graphiques(mlp, d, resultats):
@@ -95,7 +106,7 @@ def tracer_graphiques(mlp, d, resultats):
     # 3. Comparaison des méthodes (MAE)
     noms = list(resultats)
     maes = [resultats[n]["MAE"] for n in noms]
-    fig, ax = plt.subplots(figsize=(8, 4))
+    fig, ax = plt.subplots(figsize=(9, 4.5))
     couleurs = ["#e74c3c" if "MLP" in n else "#95a5a6" for n in noms]
     ax.barh(noms, maes, color=couleurs)
     ax.set_xlabel("Erreur absolue moyenne (points de %)")

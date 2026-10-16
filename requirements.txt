@@ -1,0 +1,15 @@
+# Dépendances de l'API, du pipeline (ETL, nettoyage, entraînement) et des tests
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+pandas>=2.1
+numpy>=1.26
+scikit-learn>=1.4
+joblib>=1.3
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+python-dotenv>=1.0   # lecture du fichier .env (src/database.py)
+openpyxl>=3.1
+matplotlib>=3.8
+httpx>=0.27        # client utilisé par les tests de l'API
+pytest>=8.0

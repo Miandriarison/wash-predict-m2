@@ -1,0 +1,13 @@
+/* Compléments à Bootstrap 5 : uniquement ce que Bootstrap ne fournit pas. */
+.panneau-parametres { position: static; }
+@media (min-width: 992px) {
+  .panneau-parametres { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
+}
+.kpi .valeur { font-size: 1.75rem; font-weight: 600; line-height: 1.2; }
+.zone-graphique { position: relative; height: 420px; }
+.carte-cas { border-top: 4px solid var(--couleur, #6c757d); }
+.carte-cas .valeur { font-size: 1.3rem; font-weight: 600; }
+.navbar-brand { white-space: normal; }
+.table th { white-space: nowrap; }
+img.graphique-perf { max-width: 100%; height: auto; }
+.form-range { accent-color: #3b4a8a; }
